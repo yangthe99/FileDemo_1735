@@ -21,19 +21,19 @@ namespace FileDemo_1735
         /// </summary>
         private List<string> _Files;
         /// <summary>
-        /// 儲存檔案的內容，用於比對檔案是否有變更
+        /// 先儲存檔案內容，用於比對當前檔案是否有變更
         /// </summary>
         private Dictionary<string, string> _fileContents = new Dictionary<string, string>();
         /// <summary>
-        /// 儲存檔案變更事件的緩衝區，降低處理的頻率(批次處理)
+        /// 儲存檔案變更事件的緩衝區
         /// </summary>
         private List<FileSystemEventArgs> _changeBuffer = new List<FileSystemEventArgs>();
         /// <summary>
-        /// 追蹤最後一次檔案變更的時間，DateTime.MinValue表示尚未處理過任何變更事件
+        /// 用於追蹤最後一次檔案變更的時間
         /// </summary>
-        private DateTime _lastChangeTime = DateTime.MinValue;
+        private DateTime _lastChangeTime;
         /// <summary>
-        /// 用於定期觸發處理緩衝區中的事件
+        /// 要寫定期觸發處理緩衝區中的事件
         /// </summary>
         private Timer _timer;
         /// <summary>
@@ -122,42 +122,22 @@ namespace FileDemo_1735
         /// </summary>
         private async void OnFileChanged(FileSystemEventArgs e)
         {
+            // 確保是被監控的檔案
             if (_Files.Contains(e.Name))
             {
+                // 建立一個唯一的識別鍵 changeKey，追蹤檔案變更。
                 string changeKey = $"{e.Name}_{e.ChangeType}";
-                // 增加這個檢查來確保這次變更會被處理
+
+                // changeKey沒有在_processedChanges的話
                 if (!_processedChanges.Contains(changeKey))
                 {
-                    _processedChanges.Add(changeKey);
-                    _changeBuffer.Add(e);
-                }
-                if (!_processedChanges.Contains(changeKey))
-                {
-                    _processedChanges.Add(changeKey);
-                    _changeBuffer.Add(e);
-                    _lastChangeTime = DateTime.Now;
-
-                    try
-                    {
-                        string filePath = Path.Combine(_Path, e.Name);
-                        string currentContent = await File.ReadAllTextAsync(filePath);
-
-                        if (_fileContents.ContainsKey(e.Name))
-                        {
-                            string previousContent = _fileContents[e.Name];
-                            Console.WriteLine($"檔案 {e.Name} 此批次的內容異動如下：");
-                            DisplayFileDifferences(previousContent, currentContent);
-                        }
-
-                        _fileContents[e.Name] = currentContent;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"無法處理檔案 {e.Name}: {ex.Message}");
-                    }
+                    _processedChanges.Add(changeKey);  // 標記為已處理
+                    _changeBuffer.Add(e);              // 加入緩衝區
+                    _lastChangeTime = DateTime.Now;    // 更新_lastChangeTime
                 }
             }
         }
+
         /// <summary>
         /// 顯示檔案差異處
         /// </summary>
@@ -201,24 +181,24 @@ namespace FileDemo_1735
         private async void FlushChanges(object state)
         {
             // 每次定時器觸發時，處理所有積累的變更
-            if (_changeBuffer.Count > 0) // 緩衝區有資料的話
+            if (_changeBuffer.Count > 0)
             {
-                // 確保每次定時器處理緩衝區的變更
                 foreach (var change in _changeBuffer)
                 {
                     try
                     {
-                        string filePath = Path.Combine(_Path, change.Name);  // 確保路徑與檔案名稱組合正確
+                        string filePath = Path.Combine(_Path, change.Name); // 路徑與檔案名稱組合
                         string currentContent = await File.ReadAllTextAsync(filePath);
 
-                        if (_fileContents.ContainsKey(change.Name))
+                        if (_fileContents.ContainsKey(change.Name)) // 確認檔案是否存在於_fileContents
+                                                                    // ContainsKey：字典(_fileContents)中存在鍵(change.Name)就進行內容比對
                         {
                             string previousContent = _fileContents[change.Name];
-                            Console.WriteLine($"檔案 {change.Name} 此批次的內容異動如下：");
+                            Console.WriteLine($"檔案【{change.Name}】此批次的異動內容如下：");
                             DisplayFileDifferences(previousContent, currentContent);
                         }
 
-                        // 更新檔案內容
+                        // 更新_fileContents
                         _fileContents[change.Name] = currentContent;
                     }
                     catch (Exception ex)
@@ -227,7 +207,7 @@ namespace FileDemo_1735
                     }
                 }
 
-                // 清空已處理的變更
+                // 清空已經被處理的事件們和緩衝區，避免重複處理。
                 _processedChanges.Clear();
                 _changeBuffer.Clear();
             }
