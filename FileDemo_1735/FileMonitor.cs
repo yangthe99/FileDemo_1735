@@ -23,7 +23,7 @@ namespace FileDemo_1735
         /// <summary>
         /// 儲存檔案的內容，用於比對檔案是否有變更
         /// </summary>
-        private Dictionary<string, string> _fileContents = new Dictionary<string, string>();
+        private Dictionary<string, string> _FileContents = new Dictionary<string, string>();
 
         /// <summary>
         /// FileMonitor建構子
@@ -69,7 +69,7 @@ namespace FileDemo_1735
                     if (File.Exists(filePath)) //檔案存在
                     {
                         string initialContent = File.ReadAllText(filePath); // 讀取指定檔案的所有文字內容
-                        _fileContents[file] = initialContent; // 將指定檔案內容存入_fileContents
+                        _FileContents[file] = initialContent; // 將指定檔案內容存入_fileContents
                     }
                 }
                 catch (Exception ex)
@@ -113,15 +113,15 @@ namespace FileDemo_1735
                     string currentContent = File.ReadAllText(e.FullPath);
 
                     // 檢查檔案是否已經監控過
-                    if (_fileContents.ContainsKey(e.Name))
+                    if (_FileContents.ContainsKey(e.Name))
                     {
                         // 與之前的內容對比，顯示差異
-                        string previousContent = _fileContents[e.Name];
+                        string previousContent = _FileContents[e.Name];
                         DisplayFileDifferences(previousContent, currentContent);
                     }
 
                     // 更新檔案內容為最新的內容
-                    _fileContents[e.Name] = currentContent;
+                    _FileContents[e.Name] = currentContent;
                 }
                 catch (Exception ex)
                 {
