@@ -89,8 +89,6 @@ namespace FileDemo_1735
 
             // lambda寫法的事件處理
             watcher.Changed += (sender, e) => OnFileChanged(e);
-            watcher.Created += (sender, e) => OnFileChanged(e); // 監控檔案新增
-            watcher.Deleted += (sender, e) => OnFileChanged(e); // 監控檔案刪除
 
             // 啟動監控
             watcher.EnableRaisingEvents = true;
