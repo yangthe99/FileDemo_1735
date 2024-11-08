@@ -139,16 +139,33 @@ namespace FileDemo_1735
         /// <param name="currentContent"></param>
         private void DisplayFileDifferences(string previousContent, string currentContent)
         {
+            // 將previousContent的內容拆分[], StringSplitOptions.RemoveEmptyEntries：則會將[]內空的項目("")去除
             var previousLines = previousContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             var currentLines = currentContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
             // 找出新增的內容（currentContent 中有，而 previousContent 中沒有的行）
             int previousIndex = 0;
+            bool contentChanged = false;  // 標示是否發生變更
+
+            // 比較檔案的每一行
             for (int i = 0; i < currentLines.Length; i++)
             {
                 if (previousIndex < previousLines.Length && currentLines[i] == previousLines[previousIndex])
+                {
                     previousIndex++; // 當前行和之前的行相同，跳過
-                Console.WriteLine(currentLines[i]); // 當前行是新增的，顯示它
+                }
+                else
+                {
+                    // 顯示新增的行（不同的行）
+                    contentChanged = true;
+                    Console.WriteLine($"新增內容: {currentLines[i]}");
+                }
+            }
+
+            // 若無新增行或變更，可以不顯示過多資訊
+            if (!contentChanged)
+            {
+                Console.WriteLine("檔案內容沒有變更");
             }
         }
     }
