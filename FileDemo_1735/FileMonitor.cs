@@ -25,6 +25,11 @@ namespace FileDemo_1735
         /// </summary>
         private Dictionary<string, string> _fileContents = new Dictionary<string, string>();
 
+        private List<FileSystemEventArgs> _changeBuffer = new List<FileSystemEventArgs>();
+        private Timer _timer;
+        private HashSet<string> _processedChanges = new HashSet<string>();
+
+
         /// <summary>
         /// FileMonitor建構子
         /// </summary>
@@ -34,6 +39,10 @@ namespace FileDemo_1735
             var config = LoadConfig(configFilePath);
             _Path = config.Path;
             _Files = config.Files;
+
+            // 設定 Timer，定時處理變更
+            // new Timer(執行的回呼方法, 傳遞給回呼方法的資料(創建 Timer 時提供的物件), 首次執行的延遲時間, 間隔時間)
+            _timer = new Timer(FlushChanges, null, TimeSpan.Zero, TimeSpan.FromSeconds(5)); // 每5秒處理一次
         }
 
         /// <summary>
@@ -60,7 +69,6 @@ namespace FileDemo_1735
         /// </summary>
         public void StartMonitoring()
         {
-            // 啟動監控前，先讀取並記錄所有指定檔案的初始內容
             foreach (var file in _Files)
             {
                 try
@@ -98,36 +106,41 @@ namespace FileDemo_1735
             Console.WriteLine("開始監控檔案變動...");
             Console.ReadLine(); // 按 Enter 鍵退出監控
         }
-
         /// <summary>
         /// 檢查檔案的異動
         /// </summary>
-        /// <param name="e"></param>
-        private void OnFileChanged(FileSystemEventArgs e)
+        private async void OnFileChanged(FileSystemEventArgs e)
         {
             // 只處理設定檔中指定的檔案
             if (_Files.Contains(e.Name))
             {
-                Console.WriteLine($"檔案 {e.Name} ({e.ChangeType}):");
+                string changeKey = $"{e.Name}_{e.ChangeType}";
 
-                try
+                // 如果尚未處理過此檔案的變更
+                if (!_processedChanges.Contains(changeKey))
                 {
-                    string currentContent = File.ReadAllText(e.FullPath);
+                    _processedChanges.Add(changeKey); // 記錄該檔案和變更類型的組合
+                    //Console.WriteLine($"{e.Name}檔案({e.ChangeType})");
 
-                    // 檢查檔案是否已經監控過
-                    if (_fileContents.ContainsKey(e.Name))
+                    try
                     {
-                        // 與之前的內容對比，顯示差異
-                        string previousContent = _fileContents[e.Name];
-                        DisplayFileDifferences(previousContent, currentContent);
-                    }
+                        string filePath = Path.Combine(_Path, e.Name);
+                        string currentContent = await File.ReadAllTextAsync(filePath); // 非同步讀取檔案內容
 
-                    // 更新檔案內容為最新的內容
-                    _fileContents[e.Name] = currentContent;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"無法讀取檔案內容: {ex.Message}");
+                        // 檢查檔案是否已經監控過
+                        if (_fileContents.ContainsKey(e.Name))
+                        {
+                            string previousContent = _fileContents[e.Name];
+                            Console.WriteLine($"檔案 {e.Name} 此批次的內容異動如下：");
+                            DisplayFileDifferences(previousContent, currentContent); // 顯示內容差異
+                        }
+                        // 更新檔案內容為最新
+                        _fileContents[e.Name] = currentContent;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"無法處理檔案 {e.Name}: {ex.Message}");
+                    }
                 }
             }
         }
@@ -158,7 +171,7 @@ namespace FileDemo_1735
                 {
                     // 顯示新增的行（不同的行）
                     contentChanged = true;
-                    Console.WriteLine($"新增內容: {currentLines[i]}");
+                    Console.WriteLine(currentLines[i]);
                 }
             }
 
@@ -167,6 +180,42 @@ namespace FileDemo_1735
             {
                 Console.WriteLine("檔案內容沒有變更");
             }
+        }
+        /// <summary>
+        /// 清理已處理過的變更標記
+        /// </summary>
+        /// <param name="state"></param>
+        private async void FlushChanges(object state)
+        {
+            //// 如果有變更紀錄
+            //if (_changeBuffer.Any())
+            //{
+            //    foreach (var changeEvent in _changeBuffer)
+            //    {
+            //        try
+            //        {
+            //            string filePath = Path.Combine(_Path, changeEvent.Name);
+            //            string currentContent = await File.ReadAllTextAsync(filePath);
+
+            //            // 檢查檔案是否已經監控過
+            //            if (_fileContents.ContainsKey(changeEvent.Name))
+            //            {
+            //                string previousContent = _fileContents[changeEvent.Name];
+            //                Console.WriteLine($"檔案 {changeEvent.Name} 此批次的內容異動如下：");
+            //                DisplayFileDifferences(previousContent, currentContent);
+            //            }
+
+            //            // 更新檔案內容為最新
+            //            _fileContents[changeEvent.Name] = currentContent;
+            //        }
+            //        catch (Exception ex)
+            //        {
+            //            Console.WriteLine($"無法處理檔案 {changeEvent.Name}: {ex.Message}");
+            //        }
+            //    }
+                // 清理已處理過的檔案變更標記
+                _processedChanges.Clear();
+            //}
         }
     }
 }
